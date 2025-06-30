@@ -1,0 +1,49 @@
+# Python Basics
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtuelle Umgebungen
+venv/
+env/
+ENV/
+
+# Umgebungsvariablen & Secrets
+.env
+.env.*
+*.env
+secrets.json
+config.json
+
+# Django spezifisch
+*.sqlite3
+db.sqlite3
+*.log
+
+# Paketverwaltung
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Migrations (optional ignorieren)
+**/migrations/
+!*/migrations/__init__.py
+
+# VS Code & IDEs
+.vscode/
+.idea/
+*.swp
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Test Output & Temp
+*.bak
+*.tmp
+*.orig
+coverage/
+htmlcov/
