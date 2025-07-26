@@ -46,3 +46,25 @@ class BoardSerializer(serializers.ModelSerializer):
         board = Board.objects.create(title=validated_data['title'], owner=user)
         board.members.set(User.objects.filter(id__in=members_ids))
         return board
+    
+class MemberSerializer(serializers.ModelSerializer):
+    fullname = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'fullname']
+
+    def get_fullname(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+
+class BoardDetailSerializer(serializers.ModelSerializer):
+    owner_id = serializers.IntegerField(source='owner.id')
+    members = MemberSerializer(many=True)
+    tasks = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Board
+        fields = ['id', 'title', 'owner_id', 'members', 'tasks']
+
+    def get_tasks(self, obj):
+        return []
