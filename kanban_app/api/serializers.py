@@ -68,3 +68,26 @@ class BoardDetailSerializer(serializers.ModelSerializer):
 
     def get_tasks(self, obj):
         return []
+    
+class BoardUpdateSerializer(serializers.ModelSerializer):
+    members = serializers.ListField(child=serializers.IntegerField(), required=False)
+    owner_data = serializers.SerializerMethodField()
+    members_data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Board
+        fields = ['id', 'title', 'members', 'owner_data', 'members_data']
+
+    def update(self, instance, validated_data):
+        members_ids = validated_data.pop('members', None)
+        if members_ids is not None:
+            instance.members.set(User.objects.filter(id__in=members_ids))
+        instance.title = validated_data.get('title', instance.title)
+        instance.save()
+        return instance
+
+    def get_owner_data(self, obj):
+        return MemberSerializer(obj.owner).data
+
+    def get_members_data(self, obj):
+        return MemberSerializer(obj.members.all(), many=True).data
