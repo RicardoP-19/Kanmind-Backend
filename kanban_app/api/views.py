@@ -7,8 +7,9 @@ from .serializers import BoardSerializer, BoardDetailSerializer, BoardUpdateSeri
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
+from django.contrib.auth import get_user_model
 
-
+User = get_user_model()
 class BoardListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -59,3 +60,25 @@ class BoardDetailView(APIView):
 
         board.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class EmailCheckView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        email = request.query_params.get('email')
+
+        if not email:
+            return Response({'error': 'Email parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        fullname = f"{user.first_name} {user.last_name}".strip()
+
+        return Response({
+            'id': user.id,
+            'email': user.email,
+            'fullname': fullname
+        }, status=status.HTTP_200_OK)
