@@ -3,11 +3,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from kanban_app.models import Board
-from .serializers import BoardSerializer, BoardDetailSerializer, BoardUpdateSerializer
+from .serializers import BoardSerializer, BoardDetailSerializer, BoardUpdateSerializer, TaskSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
 from django.contrib.auth import get_user_model
+from kanban_app.models import Task
 
 User = get_user_model()
 class BoardListView(APIView):
@@ -82,3 +83,12 @@ class EmailCheckView(APIView):
             'email': user.email,
             'fullname': fullname
         }, status=status.HTTP_200_OK)
+
+class TasksAssignedToMeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        tasks = Task.objects.filter(assignee=user)
+        serializer = TaskSerializer(tasks, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
