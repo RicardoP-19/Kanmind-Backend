@@ -2,13 +2,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from kanban_app.models import Board, Comment
+from kanban_app.models import Board, Comment, Task
 from .serializers import BoardSerializer, BoardDetailSerializer, BoardUpdateSerializer, TaskSerializer, TaskCreateSerializer, TaskUpdateSerializer, CommentSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
 from django.contrib.auth import get_user_model
-from kanban_app.models import Task
+from .permissions import IsBoardOwnerOrMember, IsBoardOwner, IsTaskBoardMember, IsCommentAuthor
 
 User = get_user_model()
 
@@ -38,23 +38,17 @@ Get, update or delete a specific board.
 Access limited to board owner or members.
 """
 class BoardDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsBoardOwnerOrMember]
 
     def get(self, request, board_id):
         board = get_object_or_404(Board, id=board_id)
-
-        if request.user != board.owner and request.user not in board.members.all():
-            raise PermissionDenied("You do not have access to this board.")
-
+        self.check_object_permissions(request, board)
         serializer = BoardDetailSerializer(board)
         return Response(serializer.data)
     
     def patch(self, request, board_id):
         board = get_object_or_404(Board, id=board_id)
-
-        if request.user != board.owner and request.user not in board.members.all():
-            raise PermissionDenied("You do not have access to modify this board.")
-
+        self.check_object_permissions(request, board)
         serializer = BoardUpdateSerializer(board, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
@@ -65,10 +59,7 @@ class BoardDetailView(APIView):
     
     def delete(self, request, board_id):
         board = get_object_or_404(Board, id=board_id)
-
-        if request.user != board.owner:
-            raise PermissionDenied("Only the board owner can delete this board.")
-
+        self.check_object_permissions(request, board)
         board.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -144,16 +135,13 @@ Update or delete a task.
 Only board owner can delete.
 """
 class TaskDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsTaskBoardMember]
 
     def patch(self, request, task_id):
         task = get_object_or_404(Task, id=task_id)
         board = task.board
         user = request.user
-
-        if user != board.owner and user not in board.members.all():
-            raise PermissionDenied("You are not allowed to modify this task.")
-
+        self.check_object_permissions(request, task)
         serializer = TaskUpdateSerializer(task, data=request.data, partial=True, context={"request": request})
         if serializer.is_valid():
             updated_task = serializer.save()
@@ -164,10 +152,7 @@ class TaskDetailView(APIView):
         task = get_object_or_404(Task, id=task_id)
         board = task.board
         user = request.user
-
-        if user != board.owner:
-            raise PermissionDenied("You are not allowed to delete this task.")
-
+        self.check_object_permissions(request, task)
         task.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -177,21 +162,18 @@ Lists or adds comments for a given task.
 Access only for board members and owner.
 """
 class TaskCommentsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsTaskBoardMember]
 
     def get(self, request, task_id):
         task = get_object_or_404(Task, id=task_id)
-        if request.user not in task.board.members.all() and request.user != task.board.owner:
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        self.check_object_permissions(request, task)
         comments = task.comments.all().order_by('created_at')
         serializer = CommentSerializer(comments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def post(self, request, task_id):
         task = get_object_or_404(Task, id=task_id)
-        if request.user not in task.board.members.all() and request.user != task.board.owner:
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-
+        self.check_object_permissions(request, task)
         serializer = CommentSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(task=task, author=request.user)
@@ -203,11 +185,10 @@ class TaskCommentsView(APIView):
 Deletes a comment if current user is the author.
 """
 class TaskCommentDeleteView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCommentAuthor]
 
     def delete(self, request, task_id, comment_id):
         comment = get_object_or_404(Comment, id=comment_id, task__id=task_id)
-        if comment.author != request.user:
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        self.check_object_permissions(request, comment)
         comment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
