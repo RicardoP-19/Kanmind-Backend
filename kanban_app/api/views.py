@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from kanban_app.models import Board
-from .serializers import BoardSerializer, BoardDetailSerializer, BoardUpdateSerializer, TaskSerializer, TaskCreateSerializer
+from .serializers import BoardSerializer, BoardDetailSerializer, BoardUpdateSerializer, TaskSerializer, TaskCreateSerializer, TaskUpdateSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
@@ -111,3 +111,31 @@ class TaskCreateView(APIView):
             task = serializer.save()
             return Response(TaskSerializer(task).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class TaskDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, task_id):
+        task = get_object_or_404(Task, id=task_id)
+        board = task.board
+        user = request.user
+
+        if user != board.owner and user not in board.members.all():
+            raise PermissionDenied("You are not allowed to modify this task.")
+
+        serializer = TaskUpdateSerializer(task, data=request.data, partial=True, context={"request": request})
+        if serializer.is_valid():
+            updated_task = serializer.save()
+            return Response(TaskSerializer(updated_task).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, task_id):
+        task = get_object_or_404(Task, id=task_id)
+        board = task.board
+        user = request.user
+
+        if user != board.owner:
+            raise PermissionDenied("You are not allowed to delete this task.")
+
+        task.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
