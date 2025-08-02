@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from kanban_app.models import Board
-from .serializers import BoardSerializer, BoardDetailSerializer, BoardUpdateSerializer, TaskSerializer, TaskCreateSerializer, TaskUpdateSerializer
+from kanban_app.models import Board, Comment
+from .serializers import BoardSerializer, BoardDetailSerializer, BoardUpdateSerializer, TaskSerializer, TaskCreateSerializer, TaskUpdateSerializer, CommentSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
@@ -138,4 +138,37 @@ class TaskDetailView(APIView):
             raise PermissionDenied("You are not allowed to delete this task.")
 
         task.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TaskCommentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, task_id):
+        task = get_object_or_404(Task, id=task_id)
+        if request.user not in task.board.members.all() and request.user != task.board.owner:
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        comments = task.comments.all().order_by('created_at')
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def post(self, request, task_id):
+        task = get_object_or_404(Task, id=task_id)
+        if request.user not in task.board.members.all() and request.user != task.board.owner:
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(task=task, author=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class TaskCommentDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, task_id, comment_id):
+        comment = get_object_or_404(Comment, id=comment_id, task__id=task_id)
+        if comment.author != request.user:
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        comment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
