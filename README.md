@@ -112,16 +112,6 @@ SECRET_KEY=your-secret-key
 
 ---
 
-## 🧪 Testing
-
-```bash
-python manage.py test
-```
-
-Test coverage should meet the 95% requirement.
-
----
-
 ## 📄 License
 
 Licensed under the **MIT License**.
