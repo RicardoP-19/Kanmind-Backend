@@ -9,7 +9,6 @@ class BoardSerializer(serializers.ModelSerializer):
     tasks_to_do_count = serializers.SerializerMethodField()
     tasks_high_prio_count = serializers.SerializerMethodField()
     members = serializers.ListField(write_only=True, child=serializers.IntegerField(), required=False)
-
     class Meta:
         model = Board
         fields = [
@@ -49,7 +48,6 @@ class BoardSerializer(serializers.ModelSerializer):
     
 class MemberSerializer(serializers.ModelSerializer):
     fullname = serializers.SerializerMethodField()
-
     class Meta:
         model = User
         fields = ['id', 'email', 'fullname']
@@ -61,7 +59,6 @@ class BoardDetailSerializer(serializers.ModelSerializer):
     owner_id = serializers.IntegerField(source='owner.id')
     members = MemberSerializer(many=True)
     tasks = serializers.SerializerMethodField()
-
     class Meta:
         model = Board
         fields = ['id', 'title', 'owner_id', 'members', 'tasks']
@@ -73,7 +70,6 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
     members = serializers.ListField(child=serializers.IntegerField(), required=False)
     owner_data = serializers.SerializerMethodField()
     members_data = serializers.SerializerMethodField()
-
     class Meta:
         model = Board
         fields = ['id', 'title', 'members', 'owner_data', 'members_data']
@@ -95,7 +91,6 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
 
 class TaskUserSerializer(serializers.ModelSerializer):
     fullname = serializers.SerializerMethodField()
-
     class Meta:
         model = User
         fields = ['id', 'email', 'fullname']
@@ -106,7 +101,6 @@ class TaskUserSerializer(serializers.ModelSerializer):
 class TaskSerializer(serializers.ModelSerializer):
     assignee = TaskUserSerializer(read_only=True)
     reviewer = TaskUserSerializer(read_only=True)
-
     class Meta:
         model = Task
         fields = [
@@ -126,7 +120,6 @@ class TaskSerializer(serializers.ModelSerializer):
 class TaskCreateSerializer(serializers.ModelSerializer):
     assignee_id = serializers.IntegerField(required=False, allow_null=True)
     reviewer_id = serializers.IntegerField(required=False, allow_null=True)
-
     class Meta:
         model = Task
         fields = [
@@ -146,19 +139,53 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             if uid is not None:
                 if not board.members.filter(id=uid).exists():
                     raise serializers.ValidationError(f"User with id {uid} is not a board member.")
-
         return data
 
     def create(self, validated_data):
         assignee_id = validated_data.pop("assignee_id", None)
         reviewer_id = validated_data.pop("reviewer_id", None)
-
         task = Task.objects.create(**validated_data)
 
         if assignee_id:
             task.assignee_id = assignee_id
         if reviewer_id:
             task.reviewer_id = reviewer_id
-
         task.save()
         return task
+    
+
+class TaskUpdateSerializer(serializers.ModelSerializer):
+    assignee_id = serializers.IntegerField(required=False, allow_null=True)
+    reviewer_id = serializers.IntegerField(required=False, allow_null=True)
+    class Meta:
+        model = Task
+        fields = [
+            "title", "description", "status", "priority",
+            "assignee_id", "reviewer_id", "due_date"
+        ]
+
+    def validate(self, data):
+        task = self.instance
+        board = task.board
+        user = self.context["request"].user
+
+        if user != board.owner and user not in board.members.all():
+            raise serializers.ValidationError("You are not a member of this board.")
+
+        for field in ["assignee_id", "reviewer_id"]:
+            uid = data.get(field)
+            if uid is not None:
+                if not board.members.filter(id=uid).exists():
+                    raise serializers.ValidationError(f"User {uid} is not a board member.")
+        return data
+
+    def update(self, instance, validated_data):
+        instance.title = validated_data.get("title", instance.title)
+        instance.description = validated_data.get("description", instance.description)
+        instance.status = validated_data.get("status", instance.status)
+        instance.priority = validated_data.get("priority", instance.priority)
+        instance.due_date = validated_data.get("due_date", instance.due_date)
+        instance.assignee_id = validated_data.get("assignee_id") if "assignee_id" in validated_data else instance.assignee_id
+        instance.reviewer_id = validated_data.get("reviewer_id") if "reviewer_id" in validated_data else instance.reviewer_id
+        instance.save()
+        return instance
