@@ -11,6 +11,11 @@ from django.contrib.auth import get_user_model
 from kanban_app.models import Task
 
 User = get_user_model()
+
+"""
+Lists boards the user owns or is member of.
+Allows creation of a new board.
+"""
 class BoardListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -26,7 +31,12 @@ class BoardListView(APIView):
             board = serializer.save()
             return Response(BoardSerializer(board).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+
+"""
+Get, update or delete a specific board.
+Access limited to board owner or members.
+"""
 class BoardDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -62,6 +72,11 @@ class BoardDetailView(APIView):
         board.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+"""
+Checks if a user exists for the given email.
+Returns ID and full name if found.
+"""
 class EmailCheckView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -84,6 +99,10 @@ class EmailCheckView(APIView):
             'fullname': fullname
         }, status=status.HTTP_200_OK)
 
+
+"""
+Returns all tasks assigned to the current user.
+"""
 class TasksAssignedToMeView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -92,7 +111,11 @@ class TasksAssignedToMeView(APIView):
         tasks = Task.objects.filter(assignee=user)
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
+
+"""
+Returns all tasks where the current user is reviewer.
+"""
 class TasksReviewingView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -102,6 +125,9 @@ class TasksReviewingView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+"""
+Creates a new task if user has board access.
+"""
 class TaskCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -112,6 +138,11 @@ class TaskCreateView(APIView):
             return Response(TaskSerializer(task).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+"""
+Update or delete a task.
+Only board owner can delete.
+"""
 class TaskDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -141,6 +172,10 @@ class TaskDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+"""
+Lists or adds comments for a given task.
+Access only for board members and owner.
+"""
 class TaskCommentsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -162,7 +197,11 @@ class TaskCommentsView(APIView):
             serializer.save(task=task, author=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+
+"""
+Deletes a comment if current user is the author.
+"""
 class TaskCommentDeleteView(APIView):
     permission_classes = [IsAuthenticated]
 
