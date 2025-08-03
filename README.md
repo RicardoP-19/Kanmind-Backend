@@ -78,7 +78,6 @@ Server runs at: `http://127.0.0.1:8000`
 ### 🔑 Authentication
 - `POST /api/registration/` – Create new user
 - `POST /api/login/` – Authenticate user
-- `GET /api/email-check/?email=...` – Check email availability
 
 ### 📁 Boards
 - `GET /api/boards/` – List boards of current user
@@ -98,6 +97,9 @@ Server runs at: `http://127.0.0.1:8000`
 - `GET /api/tasks/<task_id>/comments/` – List comments
 - `POST /api/tasks/<task_id>/comments/` – Add comment
 - `DELETE /api/tasks/<task_id>/comments/<comment_id>/` – Delete comment (only author)
+
+### 📧 Email
+- `GET /api/email-check/?email=...` – Check if an email is registered
 
 ---
 

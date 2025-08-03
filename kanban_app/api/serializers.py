@@ -2,10 +2,10 @@ from rest_framework import serializers
 from kanban_app.models import Board, Task, Comment
 from django.contrib.auth.models import User
 
-"""
-Serializer for creating and listing boards
-"""
 class BoardSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating and listing boards
+    """
     owner_id = serializers.IntegerField(source='owner.id', read_only=True)
     member_count = serializers.SerializerMethodField()
     ticket_count = serializers.SerializerMethodField()
@@ -49,11 +49,10 @@ class BoardSerializer(serializers.ModelSerializer):
         board.members.set(User.objects.filter(id__in=members_ids))
         return board
     
-
-"""
-Serializer for User data used in board and task context.
-"""
 class MemberSerializer(serializers.ModelSerializer):
+    """
+    Serializer for User data used in board and task context.
+    """
     fullname = serializers.SerializerMethodField()
     class Meta:
         model = User
@@ -62,11 +61,10 @@ class MemberSerializer(serializers.ModelSerializer):
     def get_fullname(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
 
-
-"""
-Detailed serializer for board view: includes tasks and full member info.
-"""
 class BoardDetailSerializer(serializers.ModelSerializer):
+    """
+    Detailed serializer for board view: includes tasks and full member info.
+    """
     owner_id = serializers.IntegerField(source='owner.id')
     members = MemberSerializer(many=True)
     tasks = serializers.SerializerMethodField()
@@ -77,11 +75,10 @@ class BoardDetailSerializer(serializers.ModelSerializer):
     def get_tasks(self, obj):
         return []
 
-
-"""
-Serializer for updating a board and returning full member and owner info.
-"""
 class BoardUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating a board and returning full member and owner info.
+    """
     members = serializers.ListField(child=serializers.IntegerField(), required=False)
     owner_data = serializers.SerializerMethodField()
     members_data = serializers.SerializerMethodField()
@@ -103,11 +100,10 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
     def get_members_data(self, obj):
         return MemberSerializer(obj.members.all(), many=True).data
     
-
-"""
-Serializer for displaying assignee/reviewer user data in tasks.
-"""
 class TaskUserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for displaying assignee/reviewer user data in tasks.
+    """
     fullname = serializers.SerializerMethodField()
     class Meta:
         model = User
@@ -116,11 +112,10 @@ class TaskUserSerializer(serializers.ModelSerializer):
     def get_fullname(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
 
-
-"""
-Read-only task serializer with nested user info for assignee/reviewer.
-"""
 class TaskSerializer(serializers.ModelSerializer):
+    """
+    Read-only task serializer with nested user info for assignee/reviewer.
+    """
     assignee = TaskUserSerializer(read_only=True)
     reviewer = TaskUserSerializer(read_only=True)
     class Meta:
@@ -138,11 +133,10 @@ class TaskSerializer(serializers.ModelSerializer):
             'comments_count'
         ]
 
-
-"""
-Serializer for creating new tasks. Includes validation for board membership.
-"""
 class TaskCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating new tasks. Includes validation for board membership.
+    """
     assignee_id = serializers.IntegerField(required=False, allow_null=True)
     reviewer_id = serializers.IntegerField(required=False, allow_null=True)
     class Meta:
@@ -178,11 +172,10 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         task.save()
         return task
     
-
-"""
-Serializer for updating an existing task with permissions and checks.
-"""
 class TaskUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating an existing task with permissions and checks.
+    """
     assignee_id = serializers.IntegerField(required=False, allow_null=True)
     reviewer_id = serializers.IntegerField(required=False, allow_null=True)
     class Meta:
@@ -218,13 +211,11 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
-"""
-Serializer for listing and creating task comments.
-"""
 class CommentSerializer(serializers.ModelSerializer):
+    """
+    Serializer for listing and creating task comments.
+    """
     author = serializers.SerializerMethodField()
-
     class Meta:
         model = Comment
         fields = ['id', 'created_at', 'author', 'content']
