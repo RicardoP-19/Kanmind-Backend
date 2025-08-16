@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from kanban_app.models import Board, Task, Comment
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model 
+User = get_user_model()
 
 class BoardSerializer(serializers.ModelSerializer):
     """
@@ -79,7 +80,7 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating a board and returning full member and owner info.
     """
-    members = serializers.ListField(child=serializers.IntegerField(), required=False)
+    members = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False)
     owner_data = serializers.SerializerMethodField()
     members_data = serializers.SerializerMethodField()
     class Meta:

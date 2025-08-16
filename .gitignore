@@ -28,10 +28,6 @@ db.sqlite3
 dist/
 build/
 
-# Migrations (optional ignorieren)
-**/migrations/
-!*/migrations/__init__.py
-
 # VS Code & IDEs
 .vscode/
 .idea/
