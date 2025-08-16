@@ -109,7 +109,10 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
     lookup_url_kwarg = "task_id"
 
     def get_queryset(self):
-        return Task.objects.filter(board__members=self.request.user) | Task.objects.filter(board__owner=self.request.user)
+        user = self.request.user
+        return Task.objects.filter(
+            Q(board__members=user) | Q(board__owner=user)
+        ).distinct()
 
     def get_serializer_class(self):
         if self.request.method in ['PATCH', 'PUT']:
