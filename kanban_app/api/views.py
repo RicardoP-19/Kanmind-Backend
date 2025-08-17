@@ -96,8 +96,15 @@ class TaskCreateView(CreateAPIView):
     serializer_class = TaskCreateSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save()
+    # def perform_create(self, serializer):
+    #     serializer.save()
+    def create(self, request, *args, **kwargs):
+        ser = self.get_serializer(data=request.data, context={'request': request})
+        ser.is_valid(raise_exception=True)
+        task = ser.save()
+        out = TaskSerializer(task).data  # <- exakt wie in der Doku
+        headers = self.get_success_headers(out)
+        return Response(out, status=status.HTTP_201_CREATED, headers=headers)
 
 class TaskDetailView(RetrieveUpdateDestroyAPIView):
     """
@@ -118,6 +125,18 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         if self.request.method in ['PATCH', 'PUT']:
             return TaskUpdateSerializer
         return TaskSerializer
+    
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', request.method == 'PATCH')
+        instance = self.get_object()
+        in_ser = self.get_serializer(instance, data=request.data, partial=partial, context={'request': request})
+        in_ser.is_valid(raise_exception=True)
+        task = in_ser.save()
+
+        out = TaskSerializer(task).data
+        out.pop("board", None)
+        out.pop("comments_count", None)
+        return Response(out, status=status.HTTP_200_OK)
 
 class TaskCommentsView(APIView):
     """
