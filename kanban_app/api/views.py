@@ -8,7 +8,7 @@ from .serializers import BoardSerializer, BoardDetailSerializer, BoardUpdateSeri
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.contrib.auth import get_user_model
-from .permissions import IsBoardOwnerOrMember, IsBoardOwner, IsTaskBoardMember, IsCommentAuthor
+from .permissions import IsBoardMemberOrOwner, IsBoardOwner, IsTaskBoardMember, IsCommentAuthor
 
 User = get_user_model()
 class BoardListView(ListCreateAPIView):
@@ -32,12 +32,14 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
     Access limited to board owner or members.
     """
     serializer_class = BoardDetailSerializer
-    permission_classes = [IsAuthenticated, IsBoardOwnerOrMember]
+    permission_classes = [IsAuthenticated, IsBoardMemberOrOwner]
     lookup_url_kwarg = "board_id"
+    queryset = Board.objects.all()
 
-    def get_queryset(self):
-        user = self.request.user
-        return Board.objects.filter(Q(owner=user) | Q(members=user)).distinct()
+    def get_object(self):
+        board = get_object_or_404(Board, pk=self.kwargs["board_id"])
+        self.check_object_permissions(self.request, board)
+        return board
 
     def get_serializer_class(self):
         if self.request.method in ['PATCH', 'PUT']:
@@ -96,13 +98,16 @@ class TaskCreateView(CreateAPIView):
     serializer_class = TaskCreateSerializer
     permission_classes = [IsAuthenticated]
 
-    # def perform_create(self, serializer):
-    #     serializer.save()
     def create(self, request, *args, **kwargs):
+        board_id = request.data.get("board")
+        if board_id is None:
+            return Response({"board": ["This field is required."]}, status=400)
+        get_object_or_404(Board, pk=board_id)
+    
         ser = self.get_serializer(data=request.data, context={'request': request})
         ser.is_valid(raise_exception=True)
         task = ser.save()
-        out = TaskSerializer(task).data  # <- exakt wie in der Doku
+        out = TaskSerializer(task).data
         headers = self.get_success_headers(out)
         return Response(out, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -114,12 +119,12 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = TaskUpdateSerializer
     permission_classes = [IsAuthenticated, IsTaskBoardMember]
     lookup_url_kwarg = "task_id"
+    queryset = Task.objects.all()
 
-    def get_queryset(self):
-        user = self.request.user
-        return Task.objects.filter(
-            Q(board__members=user) | Q(board__owner=user)
-        ).distinct()
+    def get_object(self):
+        task = get_object_or_404(Task, pk=self.kwargs["task_id"])
+        self.check_object_permissions(self.request, task)
+        return task
 
     def get_serializer_class(self):
         if self.request.method in ['PATCH', 'PUT']:

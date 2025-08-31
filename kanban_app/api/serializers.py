@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from kanban_app.models import Board, Task, Comment
-from django.contrib.auth import get_user_model 
+from django.contrib.auth import get_user_model
+from rest_framework.exceptions import PermissionDenied
 User = get_user_model()
 
 class BoardSerializer(serializers.ModelSerializer):
@@ -81,11 +82,33 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
     Serializer for updating a board and returning full member and owner info.
     """
     members = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False)
-    owner_data = serializers.SerializerMethodField()
-    members_data = serializers.SerializerMethodField()
+    owner_data = serializers.SerializerMethodField(read_only=True)
+    members_data = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = Board
         fields = ['id', 'title', 'members', 'owner_data', 'members_data']
+        read_only_fields = ['id', 'owner_data', 'members_data']
+
+    def validate_members(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("members must be a list of user ids.")
+        ids = list(dict.fromkeys(value))  # de-dupe
+        existing = set(User.objects.filter(id__in=ids).values_list('id', flat=True))
+        missing = [i for i in ids if i not in existing]
+        if missing:
+            raise serializers.ValidationError(
+                {"missing_user_ids": missing}
+            )
+        return ids
+    
+    def validate(self, attrs):
+        allowed = {'title', 'members'}
+        extra_keys = set(self.initial_data.keys()) - allowed
+        if extra_keys:
+            raise serializers.ValidationError(
+                {"non_field_errors": [f"Unknown fields: {', '.join(sorted(extra_keys))}"]}
+            )
+        return attrs
 
     def update(self, instance, validated_data):
         members_ids = validated_data.pop('members', None)
@@ -156,13 +179,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         user = self.context["request"].user
 
         if user != board.owner and user not in board.members.all():
-            raise serializers.ValidationError("You are not a member of this board.")
-
-        for field in ["assignee_id", "reviewer_id"]:
-            uid = data.get(field)
-            if uid is not None:
-                if not board.members.filter(id=uid).exists():
-                    raise serializers.ValidationError(f"User with id {uid} is not a board member.")
+            raise PermissionDenied("You are not a member of this board.")
+        
         return data
 
     def create(self, validated_data):
