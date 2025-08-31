@@ -8,15 +8,19 @@ class IsAuthenticatedAndBoardMember(BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated
 
-class IsBoardOwnerOrMember(BasePermission):
+class IsBoardMemberOrOwner(BasePermission):
     """
     Grants access if the user is either
     - the owner of the board, or
     - a member of the board.
-    Typically used for board-related objects.
+    Correct version: does NOT filter the queryset, only checks permissions.
     """
     def has_object_permission(self, request, view, obj):
-        return obj.owner == request.user or request.user in obj.members.all()
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if obj.owner == request.user:
+            return True
+        return obj.members.filter(id=request.user.id).exists()
 
 class IsBoardOwner(BasePermission):
     """
