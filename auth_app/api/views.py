@@ -22,12 +22,13 @@ class RegistrationView(APIView):
         
         if serializer.is_valid():
             saved_account = serializer.save()
-            token, created = Token.objects.get_or_create(user=saved_account)
+            token, _ = Token.objects.get_or_create(user=saved_account)
+            fullname = f"{saved_account.first_name} {saved_account.last_name}".strip()
             data = {
-                'token': token.key,
-                'fullname': saved_account.username,
-                'email': saved_account.email,
-                'user_id': saved_account.id
+                "token": token.key,
+                "fullname": fullname,
+                "email": saved_account.email,
+                "user_id": saved_account.id,
             }
             return Response(data, status=status.HTTP_201_CREATED)
         else:
